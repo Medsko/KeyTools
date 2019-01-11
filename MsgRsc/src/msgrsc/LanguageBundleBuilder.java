@@ -1,30 +1,31 @@
 package msgrsc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.poi.EncryptedDocumentException;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 public class LanguageBundleBuilder {
 
 	private List<LanguageBundle> languageBundles;
 	
+	private String bugNumber;
+	
+	public LanguageBundleBuilder(String bugNumber) {
+		this.bugNumber = bugNumber;
+	}
+	
 	public boolean buildLanguageBundles(String importFileString, String msgRscDirString) {
-		
-				
+
 		if (importFileString.endsWith(".csv")) {
 			readFromCsv(importFileString, msgRscDirString);
 		} else if (importFileString.endsWith(".xlsx")) {
-			
-			
 			
 		} else if (importFileString.endsWith(".xls")) {
 			// Old school excel file.
@@ -32,42 +33,37 @@ public class LanguageBundleBuilder {
 		} else {
 			throw new UnsupportedOperationException("File extension not supported!");
 		}
-		
-		
 		return true;
 	}
 	
 	public boolean buildFromExcelDirectory(String importDir) {
 		
+		languageBundles = new ArrayList<>();
 		// List the files in the given directory, and build a bundle from each one.
-
-		return true;
-	}
-	
-	public boolean buildFromExcel(String importFile) {
 		try {
-			Workbook workbook = WorkbookFactory.create(new File(importFile));
-			Sheet msgRscSheet = workbook.getSheetAt(0);
 			
-			Row topRow = msgRscSheet.getRow(0);
+			DirectoryStream<Path> ds = Files.newDirectoryStream(Paths.get(importDir), "*.{xls,xlsx}");
+			MsgRscExcelReader reader = new MsgRscExcelReader(bugNumber);
+			for (Path importFile : ds) {
+				// Use the MsgRscExcelReader to create a language bundle from the import file.
+				reader.buildFromFile(importFile.toString());
+				languageBundles.add(reader.getLanguageBundle());
+			}
 			
-			
-			
-		} catch (EncryptedDocumentException | IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			return false;
 		}
 		
-		
 		return true;
-	}
+	}	
 
 	private boolean readFromCsv(String importFileString, String msgRscDirString) {
 		
-		LanguageBundle german = new LanguageBundle("de", msgRscDirString);
-		LanguageBundle french = new LanguageBundle("fr", msgRscDirString);
-		LanguageBundle flemish = new LanguageBundle("vls", msgRscDirString);
-		LanguageBundle norwegian = new LanguageBundle("nb", msgRscDirString);
+		LanguageBundle german = new LanguageBundle("de");
+		LanguageBundle french = new LanguageBundle("fr");
+		LanguageBundle flemish = new LanguageBundle("vls");
+		LanguageBundle norwegian = new LanguageBundle("nb");
 
 		languageBundles.add(german);
 		languageBundles.add(french);

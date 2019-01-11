@@ -5,8 +5,9 @@ import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 
@@ -22,6 +23,7 @@ public class MsgRscImporter {
 	
 	private List<LanguageBundle> languageBundles;
 	
+	
 	public boolean importMessages(String importFileString, String msgRscDirString) {
 				
 		if (!readResources(importFileString, msgRscDirString)) {
@@ -32,6 +34,50 @@ public class MsgRscImporter {
 				|| !processLanguageBundle(french)
 				|| !processLanguageBundle(flemish)
 				|| !processLanguageBundle(norwegian)) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	
+	public boolean convertExcelToCsv(String bugNumber, String importDir) {
+
+		LanguageBundleBuilder builder = new LanguageBundleBuilder(bugNumber);
+		if (!builder.buildFromExcelDirectory(importDir)) {
+			System.out.println("Failed to read the language bundles from file!");
+			return false;
+		}
+		
+		List<LanguageBundle> languageBundles = builder.getLanguageBundles();
+		String[] languageCodes = new String[languageBundles.size()];		
+		for (int i=0; i<languageCodes.length; i++) {
+			languageCodes[i] = languageBundles.get(i).getLanguage().code;
+		}
+		
+		// Convert separate language bundles back into one table structure.
+		LanguageBundleTable table = new LanguageBundleTable();
+		table.convert(languageBundles);
+
+		Path csvFilePath = Paths.get(importDir, "translations" + bugNumber + ".csv");
+		try (BufferedWriter writer = Files.newBufferedWriter(csvFilePath)) {
+			
+			for (int i=0; i<table.getNrOfRows(); i++) {
+				// Compose the row (Comma Separate them Values).
+				String line = "";
+				for (int j=0; j<table.getNrOfColumns(); j++) {
+					if (j > 0) {
+						line += ";";
+					}
+					line += table.getCell(i, j); 
+				}
+				// Write the result to file. Add a line break!
+				writer.write(line);
+				writer.newLine();
+			}
+		
+		} catch (IOException ioex) {
+			ioex.printStackTrace();
 			return false;
 		}
 		
@@ -70,13 +116,12 @@ public class MsgRscImporter {
 		return true;
 	}
 	
-	
 	private boolean readResources(String importFileString, String msgRscDirString) {
 		
-		german = new LanguageBundle("de", msgRscDirString);
-		french = new LanguageBundle("fr", msgRscDirString);
-		flemish = new LanguageBundle("vls", msgRscDirString);
-		norwegian = new LanguageBundle("nb", msgRscDirString);
+		german = new LanguageBundle("de");
+		french = new LanguageBundle("fr");
+		flemish = new LanguageBundle("vls");
+		norwegian = new LanguageBundle("nb");
 
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(importFileString)))) {
 			

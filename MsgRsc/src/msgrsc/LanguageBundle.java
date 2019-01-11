@@ -1,8 +1,9 @@
 package msgrsc;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -16,24 +17,32 @@ public class LanguageBundle {
 	
 	private String languageCode;
 	
-	public LanguageBundle(String languageCode) {
-		this.languageCode = languageCode;
-		
-	}
+	private List<String> missingTranslationKeys;
 	
-	@Deprecated
-	public LanguageBundle(String languageCode, String msgRscDir) {
+	private Language language;
+	
+	private LanguageBundle() {
 		messages = new HashMap<>();
-		String fileName = "MessageResources_" + languageCode.toLowerCase() + ".properties";
-		String tempFileName = "temp" + languageCode.toLowerCase() + ".properties";
-		msgRscFile = Paths.get(msgRscDir, fileName);
-		tempFile = Paths.get(msgRscDir, tempFileName);
-		this.languageCode = languageCode;
+		missingTranslationKeys = new ArrayList<>();
 	}
 	
+	public LanguageBundle(String languageCode) {
+		this();
+		this.languageCode = languageCode;
+		language = Language.fromRepresentation(languageCode);
+	}
+	
+	public LanguageBundle(Language language) {
+		this();
+		this.language = language;
+	}
+		
 	public void addMessage(String key, String message) {
-		if (message != null && !message.equals(""))
+		if (message != null && !message.equals("")) {
 			messages.put(key, message);
+		} else {
+			missingTranslationKeys.add(key);
+		}
 	}
 	
 	public String getMessage(String key) {
@@ -50,5 +59,13 @@ public class LanguageBundle {
 
 	public Path getTempFile() {
 		return tempFile;
+	}
+
+	public Language getLanguage() {
+		return language;
+	}
+	
+	public int size() {
+		return messages.size();
 	}
 }
