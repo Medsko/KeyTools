@@ -11,41 +11,80 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import msgrsc.imp.MrImporter;
+import msgrsc.io.LineRewriter;
+import msgrsc.request.TranslationRequest;
+import msgrsc.request.TranslationRequestBuilder;
+import msgrsc.request.TranslationRequestFileWriter;
+import msgrsc.utils.StringUtil;
+
 public class Test {
 
 	
 	public static void main(String[] args) {
-		
-		
-//		testMsgRscImport();
-		
+				
 //		testLib();
+			
+		testReplaceSpecialChars();
 		
-		testRewrite();
+//		testLineRewriter();
 		
+//		testWriteCsvTranslationRequest();
 	}
 	
-	private static void testRewrite() {
-		MsgRscImporter rewriter = new MsgRscImporter();
-		rewriter.convertExcelToCsv("QSD-50790", "C:/MsgRscImport");
+	private static void testWriteCsvTranslationRequest() {
+		TranslationRequestBuilder builder = new TranslationRequestBuilder();
+		
+		String directory = "C:/src/CURRENT_BUGFIX_CONTRACTS/QuinityFormsAdministration/source/com/quinity/qfa/applicationadministration";
+		if (!builder.buildByBugNumber("QSD-50000", directory)) {
+			System.out.println("Error!");
+			return;
+		}
+		
+		TranslationRequest request = builder.getTranslationRequest();
+		
+		TranslationRequestFileWriter writer = new TranslationRequestFileWriter(request);
+		// ...not necessary to include these, of course.
+		writer.setIncludeColumnHeaders(true);
+		
+		if (!writer.writeToCsvFile()) {
+			System.out.println("Error!");
+			return;
+		}
 	}
 	
-	private static void testMsgRscImport() {
+	
+	private static void testLineRewriter() {
 		Scanner scanner = new Scanner(System.in);
-		
-//		System.out.print("Enter file to import: ");
-//		String importFileString = scanner.nextLine();
-//		System.out.print("Enter directory containing message resources to update: ");
-//		String msgRscDirString = scanner.nextLine();
-		
-		String importFileString = "C:/Users/mvries/Desktop/combinedMsgRsc.csv";
-		String msgRscDirString = "C:/src/QSD-45945/QuinityFormsAdministration/source/com/quinity/qfa/policyadministration/report/view";
-		
-		MsgRscImporter importer = new MsgRscImporter();
-		importer.importMessages(importFileString, msgRscDirString);
-		
-		scanner.close();
+		System.out.println("Enter complete path for file to rewrite: ");
 
+		String input = scanner.nextLine().replace("\\", "/");
+		
+		LineRewriter rewriter = new LineRewriter();
+		
+		if (!rewriter.rewrite(input, s -> StringUtil.replaceAllSpecialChars(s))) {
+			System.out.println("Error while rewriting the file!!!");
+		}
+	
+		scanner.close();
+	}
+	
+	
+	private static void testReplaceSpecialChars() {
+		
+		Scanner scanner = new Scanner(System.in);
+		System.out.println("Enter a line with special characters to convert: ");
+
+		while (true) {
+			String input = scanner.nextLine();
+			
+			if (input.equals("exit"))
+				break;
+			
+			String output = StringUtil.replaceAllSpecialChars(input);
+			System.out.println(output);
+		}
+		scanner.close();
 	}
 
 	// Get to know the POI library.
