@@ -21,5 +21,7 @@
 	<classpathentry kind="lib" path="libr/poi-examples-4.0.1.jar"/>
 	<classpathentry kind="lib" path="libr/ooxml-lib/curvesapi-1.05.jar"/>
 	<classpathentry kind="lib" path="libr/ooxml-lib/xmlbeans-3.0.2.jar"/>
+	<classpathentry kind="lib" path="libr/lib/db2jcc_license_cu-10.5.0.jar"/>
+	<classpathentry kind="lib" path="libr/lib/db2jcc-10.5.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

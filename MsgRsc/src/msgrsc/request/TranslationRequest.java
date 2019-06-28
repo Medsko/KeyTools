@@ -1,5 +1,6 @@
 package msgrsc.request;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import msgrsc.dao.DbTranslation;
 import msgrsc.dao.MsgRscDir;
 import msgrsc.utils.Language;
 
@@ -31,6 +33,8 @@ public class TranslationRequest {
 	
 	private Map<String, String> englishMessages;
 	
+	private List<DbTranslation> dbTranslations;
+	
 	/**
 	 * The directories in which the files reside from which the requested translations 
 	 * where distilled. Might be nice to save to a database, so that when the requested
@@ -45,6 +49,7 @@ public class TranslationRequest {
 		activatedLanguages = new HashSet<>();
 		dutchMessages = new HashMap<>();
 		englishMessages = new HashMap<>();
+		dbTranslations = new ArrayList<>();
 	}
 
 	public void addMessage(String key, String message) {
@@ -92,6 +97,18 @@ public class TranslationRequest {
 			return "";
 	}
 	
+	public void addDbTranslation(DbTranslation dbTranslation) {
+		dbTranslations.add(dbTranslation);
+	}
+	
+	public void addDbTranslations(Collection<DbTranslation> translationsToAdd) {
+		dbTranslations.addAll(translationsToAdd);
+	}
+	
+	public List<DbTranslation> getDbTranslations() {
+		return dbTranslations;
+	}
+
 	/**
 	 * Returns an array that indicates for which languages the given message resource should
 	 * be translated. The order of languages is conform {@link Language}.ordinal().

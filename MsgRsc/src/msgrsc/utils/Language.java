@@ -118,7 +118,15 @@ public enum Language {
 	public String getPrettyCode() {
 		return code.substring(0, 1) + code.substring(1).toLowerCase();
 	}
-
+	
+	/**
+	 * Returns a capitalized, but slightly less aggressive looking version of this 
+	 * Language's name. 
+	 */
+	public String getPrettyName() {
+		return name().substring(0, 1) + name().substring(1).toLowerCase();
+	}
+	
 	public String getCode() {
 		return code;
 	}

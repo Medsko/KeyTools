@@ -1,4 +1,4 @@
-package msgrsc.utils;
+package msgrsc.craplog;
 
 /**
  * Can be used to relay messages to the user.  

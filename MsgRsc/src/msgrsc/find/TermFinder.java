@@ -1,10 +1,10 @@
-package msgrsc.fixes;
+package msgrsc.find;
 
 import java.util.List;
 
+import msgrsc.craplog.Fallible;
 import msgrsc.dao.MsgRscFile;
 import msgrsc.io.MrFileReader;
-import msgrsc.utils.Fallible;
 
 /**
  * Scans the given file for usage of the given term in messages. 
@@ -59,8 +59,6 @@ public class TermFinder implements Fallible {
 				String key = reader.getKey();
 				String message = reader.getMessage();
 				file.putMessageOfInterest(key, message);
-//				informer.informUser("Found one! Key: " + key 
-//					+ ", message: " + message);
 			}			
 		}
 		return true;

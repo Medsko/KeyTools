@@ -1,4 +1,4 @@
-package msgrsc.fixes;
+package msgrsc.find;
 
 import msgrsc.request.TranslationRequest;
 

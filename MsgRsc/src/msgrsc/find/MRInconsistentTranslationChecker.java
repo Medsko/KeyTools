@@ -1,7 +1,8 @@
-package msgrsc.fixes;
+package msgrsc.find;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -9,10 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import msgrsc.craplog.Fallible;
 import msgrsc.dao.MsgRscDir;
 import msgrsc.dao.MsgRscFile;
-import msgrsc.filewalk.MsgRscFileFinder;
-import msgrsc.utils.Fallible;
 import msgrsc.utils.Language;
 
 /**
@@ -39,17 +39,23 @@ public class MRInconsistentTranslationChecker implements Fallible {
 	private Map<String, String> termTargetTranslation;
 	
 	/**
-	 * Contains pairs of term - incorrect translation. If the given term is found in a file
-	 * for the reference language, and the given faulty translation in the corresponding  
-	 * file for the {@code languageToCheck}, it's a hit.
+	 * Determines whether the the target translations specified in the 
+	 * {@code termTargetTranslation} map SHOULD or SHOULD NOT be present 
+	 * in the messages in the target language. Default = {@code true}.
 	 */
-	private Map<String, String> termFaultyTranslation;
-
+	private boolean shouldContainTargetTranslation;
 	
 	public MRInconsistentTranslationChecker(Language referenceLanguage) {
 		this.referenceLanguage = referenceLanguage;
 		finder = new TermFinder();
 		findings = new ArrayList<>();
+		shouldContainTargetTranslation = true;
+	}
+	
+	public MRInconsistentTranslationChecker(Language referenceLanguage, 
+			boolean shouldContainTargetTranslation) {
+		this(referenceLanguage);
+		this.shouldContainTargetTranslation = shouldContainTargetTranslation;
 	}
 
 	/**
@@ -75,11 +81,12 @@ public class MRInconsistentTranslationChecker implements Fallible {
 
 			try {
 				// Write the occurrences of the wrong term to file.
-				Files.write(Paths.get("C:/", "MsgRsc", term + "IncorrectTranslations.txt"), 
-						findings, 
-						StandardOpenOption.CREATE);
+				Path resultFile = Paths.get("C:/", "MsgRsc", term + "IncorrectTranslations.txt"); 
+				Files.write(resultFile, findings, StandardOpenOption.CREATE);
 				// Clear the list of findings.
 				findings = new ArrayList<>();
+				informer.informUser("The results of the search have been logged to " 
+						+ resultFile.toString());
 			} catch (IOException e) {
 				e.printStackTrace();
 				logger.log("find - failed to write findings to file!");
@@ -94,7 +101,10 @@ public class MRInconsistentTranslationChecker implements Fallible {
 
 		for (MsgRscFile.Type type : MsgRscFile.Type.values()) {
 			for (Language language : Language.values()) {
+				
 				MsgRscFile file = dir.getFile(type, language);
+				// Also get the reference file, so we can add the reference message in the report.
+				MsgRscFile referenceFile = dir.getFile(type, referenceLanguage);
 
 				// No file of this type/language combination in directory.
 				if (file == null) {
@@ -107,19 +117,29 @@ public class MRInconsistentTranslationChecker implements Fallible {
 					totalCount++;
 					
 					informer.informUser("Now processing file: " + file.getFullPath());
+					
 					String message = file.getMessagesOfInterest().get(key);
-					if (!message.toLowerCase().contains(targetTranslation.toLowerCase())) {
-						// We have a hit.
+					// If 1) the message should NOT contain the target translation, but DOES...
+					// OR 2) the message SHOULD contain the target translation, but does NOT...
+					if ((shouldContainTargetTranslation 
+								&& !message.toLowerCase().contains(targetTranslation.toLowerCase()))
+							|| (!shouldContainTargetTranslation 
+								&& message.toLowerCase().contains(targetTranslation.toLowerCase()))) {
+						// ...we have a hit.
 						wrongTranslationCount++;
 						if (firstHit) {
-							String leadingMessage = "Wrong term found in file " + file.getFullPath() + ": ";
+							String leadingMessage = System.lineSeparator() + 
+									"Wrong term found in file " + file.getFullPath() + ": ";
 							informer.informUser(leadingMessage);
 							findings.add(leadingMessage);
 							firstHit = false;
 						}
 						// This is a message that does not contain the correct/target translation.
-						String hitMessage = "Total number of incorrect translations so far: " 
-								+ wrongTranslationCount + ". Key: " + key + ", message: " + message;
+						String hitMessage = "Total number of unacceptable translations so far: " 
+								+ wrongTranslationCount + ". Key: " + key;
+						hitMessage += System.lineSeparator() + language.getPrettyCode() + " message: " + message;
+						hitMessage += System.lineSeparator() + referenceLanguage.getPrettyCode() + 
+								" message: " + referenceFile.getMessagesOfInterest().get(key);
 						informer.informUser(hitMessage);
 						findings.add(hitMessage);
 					} else {
@@ -132,7 +152,7 @@ public class MRInconsistentTranslationChecker implements Fallible {
 
 		return false;
 	}
-
+	
 	/**
 	 * 
 	 * Given a set of keys that were extracted from the file for the reference language,
@@ -156,7 +176,7 @@ public class MRInconsistentTranslationChecker implements Fallible {
 			List<String> messageKeysOfInterest = new ArrayList<>();
 			messageKeysOfInterest.addAll(keySet);
 			// Remove the reference file, as it has now served its purpose.
-			dir.removeFile(referenceFile);
+//			dir.removeFile(referenceFile);
 
 			finder.setKeysToSearchFor(messageKeysOfInterest);
 

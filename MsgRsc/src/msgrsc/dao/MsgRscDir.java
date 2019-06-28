@@ -3,6 +3,7 @@ package msgrsc.dao;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 
 import msgrsc.utils.Language;
 
@@ -42,8 +43,8 @@ public class MsgRscDir {
 		infoFiles.add(infoFile);
 	}
 	
-	public void addInfoFiles(Collection<MsgRscFile> infoFiles) {
-		infoFiles.addAll(infoFiles);
+	public void addInfoFiles(Collection<MsgRscFile> files) {
+		infoFiles.addAll(files);
 	}
 	
 	public void removeFile(MsgRscFile file) {
@@ -79,6 +80,15 @@ public class MsgRscDir {
 		return null;
 	}
 	
+	public void forEachFile(Consumer<MsgRscFile> action) {
+		for (MsgRscFile file : msgRscFiles) {
+			action.accept(file);
+		}
+		for (MsgRscFile file : infoFiles) {
+			action.accept(file);
+		}
+	}
+	
 	/**
 	 * Indicates whether this directory contains message resource files for all
 	 * supported languages.
@@ -86,16 +96,7 @@ public class MsgRscDir {
 	public boolean isComplete() {
 		return msgRscFiles.size() >= 6 && (infoFiles.size() == 0 || infoFiles.size() >= 6);
 	}
-	
-	public boolean containsSpecialCharacters() {
-		for (MsgRscFile file : msgRscFiles) {
-			if (file.containsMessagesWithSpecialChars()) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
+		
 	@Override
 	public String toString() {
 		String toString = "Directory " + path + " contains: ";

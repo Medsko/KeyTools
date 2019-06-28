@@ -143,9 +143,7 @@ public class TranslationToolHelper {
 		for (String key : specialCharacterReplacements.keySet()) {
 			result = result.replace(key, specialCharacterReplacements.get(key));
 		}
-		
 		return result;
-
-	}	
+	}
 
 }

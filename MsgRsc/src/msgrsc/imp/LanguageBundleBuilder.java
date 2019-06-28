@@ -6,8 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import msgrsc.utils.Fallible;
+import msgrsc.craplog.Fallible;
 
+/**
+ * This is a bad class. It doesn't really do anything useful, except a for each over the files
+ * for the different languages.  
+ */
 public class LanguageBundleBuilder implements Fallible {
 
 	private LanguageBundle languageBundle;

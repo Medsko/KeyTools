@@ -60,6 +60,9 @@ public class MrFileReader {
 			return null;
 		}
 		String nextMessageResource = messageResources.get(cursor);
+		int indexOfEquals = nextMessageResource.indexOf("=");
+		if (indexOfEquals < 0)
+			return null;
 		return nextMessageResource.substring(0,
 				// Select everything to the left of the equals sign.
 				nextMessageResource.indexOf("=")).trim();
@@ -106,7 +109,7 @@ public class MrFileReader {
 			while ((line = reader.readLine()) != null) {
 				
 				// Skip out-commented and empty lines.
-				if (line.startsWith("#") || line.length() == 0) {
+				if (line.startsWith("#") || line.trim().length() == 0) {
 					continue;
 				}
 			

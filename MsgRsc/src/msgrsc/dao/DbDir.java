@@ -23,7 +23,7 @@ public class DbDir {
 	}
 	
 	public void addFiles(Collection<DbFile> files) {
-		files.addAll(files);
+		this.files.addAll(files);
 	}
 	
 	public List<DbFile> getFiles() {

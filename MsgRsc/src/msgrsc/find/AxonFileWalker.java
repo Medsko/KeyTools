@@ -1,4 +1,4 @@
-package msgrsc.filewalk;
+package msgrsc.find;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -8,8 +8,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
-import msgrsc.utils.Logger;
-import msgrsc.utils.LoggerFactory;
+import msgrsc.craplog.Logger;
+import msgrsc.craplog.LoggerFactory;
 
 public class AxonFileWalker extends SimpleFileVisitor<Path> {
 

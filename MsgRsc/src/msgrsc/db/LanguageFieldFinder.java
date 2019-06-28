@@ -15,10 +15,17 @@ public class LanguageFieldFinder {
 
 	private List<LanguageTable> languageTables;
 	
+	private PkRetriever retriever;
+	
 	public LanguageFieldFinder() {
 		languageTables = new ArrayList<>();
+		retriever = new PkRetriever();
 	}
 	
+	/**
+	 * Finds all language tables that have one or more columns that match the given
+	 * field name(s). 
+	 */
 	public boolean findLanguageTablesWithFields(String... fields) {
 	
 		StringBuilder query = new StringBuilder("select tabName, colName");
@@ -31,6 +38,8 @@ public class LanguageFieldFinder {
 		query.append(" where tabSchema = 'QIS'");
 		// ...because Customers have names too...
 		query.append(" and tabName like '%LANG%'");
+		// Exclude the Language table.
+		query.append(" and tabName <> 'LANGUAGE'");
 		query.append(" and typeName in ('VARGRAPHIC', 'VARCHAR')");
 		
 		query.append(" and colName in (");
@@ -38,8 +47,8 @@ public class LanguageFieldFinder {
 			if (i > 0) {
 				query.append(", ");
 			}
-			String field = "'" + fields[i] + "'";
-			query.append(field);			
+			String field = "'" + fields[i].toUpperCase() + "'";
+			query.append(field);
 		}
 		query.append(")");
 		
@@ -54,22 +63,38 @@ public class LanguageFieldFinder {
 		
 		try {
 			
+			LanguageTable currentLanguageTable = null;
 			playground = new McGarnagle(null);
 			
 			playground.executeQuery(query);
-			
-			LanguageTable currentLanguageTable = null;
+			int nrFieldsCurrentTable = 0;
 			
 			while (playground.next()) {
 				
 				String tableName = playground.getString("tabName");
-				if (currentLanguageTable == null || !currentLanguageTable.getName().equals(tableName)) {
+				String fieldName = playground.getString("colName");
+				
+				// I've experienced some problems when automatically constructing queries for tables
+				// with a lot of language fields, so enforce a maximum of 5 fields per table.
+				if (currentLanguageTable == null 
+						|| nrFieldsCurrentTable >= 5
+						|| !currentLanguageTable.getName().equals(tableName)) {
+					currentLanguageTable = new LanguageTable(tableName);
+					languageTables.add(currentLanguageTable);
+					nrFieldsCurrentTable = 0;
+				}
+				
+				if (nrFieldsCurrentTable >= 5) {
 					currentLanguageTable = new LanguageTable(tableName);
 					languageTables.add(currentLanguageTable);
 				}
-				
-				String fieldName = playground.getString("colName");
 				currentLanguageTable.addField(fieldName);
+				// Don't include the languageId in the primary key, as we want to find matches for the
+				// same translation but in a different language later on.
+				retriever.setExcludedFields(new String[] { "languageId" });
+				retriever.retrievePk(currentLanguageTable);
+				
+				nrFieldsCurrentTable++;
 			}
 
 		} catch (SQLException e) {
@@ -101,6 +126,8 @@ public class LanguageFieldFinder {
 			query.append(" from Syscat.columns");
 			query.append(" where tabSchema = 'QIS'");
 			query.append(" and tabName like '%LANG%'");
+			// Exclude the Language table.
+			query.append(" and tabName <> 'LANGUAGE'");
 			query.append(" and colName not in ('TSCREATED', 'TSCHANGED', 'USERIDCREATED', 'USERIDCHANGED', 'LANGUAGEID')");
 			query.append(" and typeName in ('VARGRAPHIC', 'VARCHAR')");
 			

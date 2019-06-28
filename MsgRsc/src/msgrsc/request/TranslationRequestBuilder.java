@@ -1,29 +1,28 @@
 package msgrsc.request;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import msgrsc.craplog.Fallible;
+import msgrsc.dao.DbDir;
+import msgrsc.dao.DbFile;
+import msgrsc.dao.DbTranslation;
+import msgrsc.dao.LiquibaseElement;
 import msgrsc.dao.MsgRscDir;
-import msgrsc.dao.MsgRscFile;
-import msgrsc.filewalk.MsgRscFileFinder;
+import msgrsc.find.MsgRscFileFinder;
+import msgrsc.io.LiquibaseFileReader;
 import msgrsc.io.MrFileReader;
-import msgrsc.utils.Fallible;
+import msgrsc.utils.IOUtils;
 import msgrsc.utils.Language;
 import msgrsc.utils.TranslationToolHelper;
 
 /**
- * This somewhat overweight builder can create a {@link TranslationRequest} from either
- * a given bug number or by performing a full scan of the project, depending on whether
- * {@code true} was passed to {@link #setShouldPerformFullScan(boolean)}.
+ * This somewhat overweight builder can create a {@link TranslationRequest} from a given bug number.
  * <p>
  * A scan by bug number:
  * <ul>
@@ -31,18 +30,6 @@ import msgrsc.utils.TranslationToolHelper;
  * 		bug number.
  * 	</li>
  * 	<li>Keeps track of all such occurrences and eventually writes them to a CSV file.</li>
- * </ul>
- * <p>
- * A full scan: 
- * <ul>
- * 	<li>Determines all directories with message resource files.</li>
- * 	<li>Per directory, determines all message keys present in the English file.</li>
- * 	<li>Compares the thus determined set of keys to the keys present in each of the files 
- * 		for the supported foreign {@link Language}s.
- * 	</li>
- * 	<li>Keeps track of the keys that are present in English files, but not in their foreign 
- * 		counterparts and eventually writes them to file.
- * 	</li>
  * </ul>
  */
 public class TranslationRequestBuilder implements Fallible {
@@ -52,14 +39,10 @@ public class TranslationRequestBuilder implements Fallible {
 	private List<Path> dutchAndEnglishMsgRscFiles;
 	
 	private TranslationToolHelper specialHelper;
-	
-	private boolean shouldPerformFullScan;
-	
+		
 	private final static String PATTERN_BUG_NUMBER = "QSD-\\d{5}";
 	
 	private String bugNumber;
-	
-	private int total;
 	
 	// OUTPUT
 	/** The request for translations for the message resources tagged with the given bug number. */
@@ -70,36 +53,43 @@ public class TranslationRequestBuilder implements Fallible {
 		specialHelper = new TranslationToolHelper();
 	}
 	
+	/**
+	 * Builds a complete {@link TranslationRequest} for the given bug number and the given
+	 * aggregate directory. 
+	 */
 	public boolean buildRequest(String bugNumber, String aggregateDir) {
 		if (!bugNumber.matches(PATTERN_BUG_NUMBER)) {
-			System.out.println("Please enter a valid bug number!");
+			informer.informUser("Please enter a valid bug number!");
 			return false;
 		}
 
 		this.bugNumber = bugNumber;
 		// Find all directories containing message resource files.
-		List<MsgRscDir> mrDirectories = findMrDirs(aggregateDir);
+		List<MsgRscDir> mrDirectories = IOUtils.findMesResDirs(aggregateDir);
 
 		if (mrDirectories == null) {
 			// Exception occurred while trying to determine all MR directories.
+			logger.error("I/O error while trying to determine all directories containing "
+					+ "message resource files under aggregate directory: " + aggregateDir);
 			return false;
 		}
 		
 		// Now scour all message resource files in the found directories for mention of the
 		// given bug number.
-		for (MsgRscDir dir : mrDirectories) {
-			
-			if (shouldPerformFullScan) {
-				
-				if (!buildFromFullScan(bugNumber, dir)) {
-					return false;
-				}
-				
-			} else {
-				
-				if (!buildByBugNumber(bugNumber, dir.getPath())) {
-					return false;
-				}
+		for (MsgRscDir dir : mrDirectories) {			
+			if (!buildByBugNumber(bugNumber, dir.getPath())) {
+				return false;
+			}
+		}
+		// Scan Liquibase scripts for occurrence of bug number. Add these to request.
+		DbScanner scanner = new DbScanner(bugNumber);
+		scanner.scan(aggregateDir);
+		List<DbDir> directoriesToScan = scanner.getDirectoriesToScan();
+		
+		for (DbDir dir : directoriesToScan) {
+			if (!scanDbDirectory(dir)) {
+				logger.log("buildRequest - failed to scan directory!");
+				return false;
 			}
 		}
 		
@@ -107,114 +97,51 @@ public class TranslationRequestBuilder implements Fallible {
 	}
 	
 	/**
-	 * Finds all directories containing message and/or information resources. 
+	 * Scans the files that contain the bug number for translation requests, determines
+	 * the Dutch and English text for these and adds new {@link DbTranslation}s to the
+	 * request for each. 
 	 */
-	private List<MsgRscDir> findMrDirs(String aggregateDir) {
-		// Find all directories containing message resource files.
-		Path start = Paths.get(aggregateDir);
-		MsgRscFileFinder finder = new MsgRscFileFinder();
-		try {
-			Files.walkFileTree(start, finder);
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
+	private boolean scanDbDirectory(DbDir dir) {
+		LiquibaseFileReader reader = new LiquibaseFileReader();
+		for (DbFile file : dir.getFiles()) {
+			if (!reader.readFile(file.getFullPath())) {
+				logger.log("scanDbDirectory - failed to read file: " 
+						+ file.getFullPath());
+				return false;
+			}
+			// Get a list of the insert-/updateTranslations elements.
+			List<LiquibaseElement> translations = new ArrayList<>();
+			reader.getDatabaseChangeLog().getChildrenBy(translations, 
+					(element)-> 
+						element.getTag().equals("ext:insertTranslations")
+						|| element.getTag().equals("ext:updateTranslations"));
+						
+			// For each insertTranslations, create a DbTranslation and add it to the list.
+			DbTranslationBuilder builder = new DbTranslationBuilder(bugNumber);
+			for (LiquibaseElement insTrans : translations) {
+				List<DbTranslation> dbTranslations = builder.build(insTrans);
+				if (dbTranslations.size() == 0) {
+					logger.log("scanDbDirectory - failed to build translation from "
+							+ "insertTranslations element!");
+					return false;
+				}
+				translationRequest.addDbTranslations(dbTranslations);
+			}
 		}
-		return finder.getMsgRscDirectories();
+		
+		return true;
 	}
 	
 	/**
-	 * Finds all message resources that are present in the Dutch OR English files in the given
-	 * directory and checks whether all of these are also present in the files for the other 
-	 * supported languages. Files with missing translations are rewritten with placeholders
-	 * for the missing messages.
+	 * Scans the given directory for message resources with a placeholder for 
+	 * the given bug number. Missing message keys are collected and Dutch and 
+	 * English translations are gathered. The results are set on the
+	 * {@link TranslationRequest}.
+	 * 
+	 * @param bugNumber - the bug number to scan for. Hopefully for a 'request 
+	 * translations for ...'-sub-task.
+	 * @param directory - the full path to the directory to scan. 
 	 */
-	public boolean buildFromFullScan(String bugNumber, MsgRscDir mrDir) {
-		if (translationRequest == null) {
-			translationRequest = new TranslationRequest(bugNumber);
-		}
-		
-		// Find all missing resources in the directory.
-		MrDirectoryScanner scanner = new MrDirectoryScanner(mrDir);
-		if (!scanner.scan()) {
-			logger.log("buildFromFullScan - scanner failed.");
-			return false;
-		}
-		
-		boolean dirContainsMissingMessages = false;
-		dutchAndEnglishMsgRscFiles = new ArrayList<>();
-		// Add the missing resources to the translation request.
-		for (MsgRscFile.Type type : MsgRscFile.Type.values()) {
-			for (MsgRscFile file : mrDir.getFiles(type)) {
-				
-				if (file.getLanguage() == Language.DUTCH 
-						|| file.getLanguage() == Language.ENGLISH) {
-					// Add Dutch and English files to the list, so we can collect the
-					// present messages from them later. 
-					dutchAndEnglishMsgRscFiles.add(Paths.get(file.getFullPath()));
-					continue;
-				}
-				
-				if (!file.containsMissingMessages()) {
-					// This file contains no missing messages.
-					continue;
-				}
-				// This file contains missing messages, so the same is true of the directory.
-				dirContainsMissingMessages = true;
-				
-				translationRequest.setActiveLanguage(file.getLanguage());
-				translationRequest.addMessageRequests(file.getMissingMessageKeys());
-				
-				// Rewrite the files with missing messages, adding place holders for
-				// the missing message keys.
-				// For now, append all message keys for missing resources to the end
-				// of the file, and let IntelliJ sort them out.
-				if (!appendPlaceHolders(file)) {
-					logger.log("buildFromFullScan - writing the placeholders failed.");
-					return false;
-				}
-			}
-		}
-		
-		if (dirContainsMissingMessages) {
-			// Now that we have created a complete set of the message keys that we are going to request, find the
-			// Dutch and English translations for them in the corresponding message resource files.
-			for (Path nlEnMsgRscFile : dutchAndEnglishMsgRscFiles) {
-				if (!findPresentMessages(nlEnMsgRscFile)) {
-					logger.log("Failed to read the existing messages from file: " + nlEnMsgRscFile);
-					return false;
-				}
-			}
-		}
-		
-		return true;
-	}
-	
-	private boolean appendPlaceHolders(MsgRscFile file) {
-			
-		try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(file.getFullPath()), StandardOpenOption.APPEND)) {
-			for (String missingKey : file.getMissingMessageKeys()) {
-				// Compose the place holder.
-				String placeHolderLine = missingKey; 
-				placeHolderLine += "=toBeTranslatedFor" + file.getLanguage().getPrettyCode();
-				placeHolderLine += "In" + bugNumber;
-				
-				logger.log("At this point, placeholder " + placeHolderLine + System.lineSeparator() 
-					+ " would be appended to file " + file.getFullPath());
-				total++;
-				
-				// Append the place holder to the line.
-				// TODO: uncomment after test.
-//				writer.write(placeHolderLine);
-			}
-			logger.log("Total number of missing translations found so far: " + total);
-		} catch (IOException ioex) {
-			ioex.printStackTrace();
-			return false;
-		}
-		
-		return true;
-	}
-		
 	public boolean buildByBugNumber(String bugNumber, String directory) {
 		if (translationRequest == null) {
 			translationRequest = new TranslationRequest(bugNumber);
@@ -307,23 +234,19 @@ public class TranslationRequestBuilder implements Fallible {
 			return false;
 		}
 		
-		String nextMessageResource;
-		while ((nextMessageResource = reader.getKey()) != null) {
+		while (reader.next()) {
 			
-			String messageKey = nextMessageResource.substring(0, 
-					nextMessageResource.indexOf("=")).trim();
+			String messageKey = reader.getKey();
 			
 			if (translationRequest.containsKey(messageKey)) {
 				// Found one. Add this NL/EN message to the request.
-				String messageResource = nextMessageResource.substring(
-						nextMessageResource.indexOf("=") + 1).trim();
+				String messageResource = reader.getMessage();
 
 				// Un-escape the special characters, so the translators aren't scared off.
 				messageResource = specialHelper.replaceCodeBySpecialCharacters(messageResource);
 				translationRequest.addMessage(messageKey, messageResource);
 			}
 		}
-				
 		return true;
 	}
 
@@ -351,19 +274,18 @@ public class TranslationRequestBuilder implements Fallible {
 		
 		// Set it as active language on the TranslationRequest.
 		translationRequest.setActiveLanguage(activeLanguage);
-
-		try (BufferedReader reader = new BufferedReader(new FileReader(msgRscFile.toFile()))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				if (line.contains(bareBugNumber)) {
-					// Found one. Extract the message key from this line.
-					String messageKey = line.split("=")[0].trim();
-					translationRequest.addMessageRequest(messageKey);
-				}
-			}
-		} catch (IOException ioex) {
-			ioex.printStackTrace();
+		MrFileReader reader = new MrFileReader();
+		if (!reader.readFile(msgRscFile.toString())) {
+			logger.log("findByBugNumber - failed to read the message resource file!");
 			return false;
+		}
+		
+		while (reader.next()) {
+			// Check all message resources for the bug number.
+			if (reader.getMessage().contains(bareBugNumber)) {
+				// Found one. Add the message key to the request.
+				translationRequest.addMessageRequest(reader.getKey());
+			}
 		}
 		
 		return true;
@@ -374,9 +296,5 @@ public class TranslationRequestBuilder implements Fallible {
 	 */
 	public TranslationRequest getTranslationRequest() {
 		return translationRequest;
-	}
-
-	public void setShouldPerformFullScan(boolean shouldPerformFullScan) {
-		this.shouldPerformFullScan = shouldPerformFullScan;
 	}
 }

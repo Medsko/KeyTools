@@ -1,95 +1,85 @@
 package msgrsc.db;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
+import msgrsc.craplog.Fallible;
+import msgrsc.dao.DbTermHit;
 import msgrsc.dao.LanguageTable;
 
-public class DbTermFinder {
+public class DbTermFinder implements Fallible {
 
-	public boolean find(String term) {
-		
-		LanguageFieldFinder finder = new LanguageFieldFinder();
-		finder.findLanguageTablesAllFields();
-		
-		return findTermInTables(term, finder.getLanguageTables());
-	}
+	private List<LanguageTable> tablesWithHits;
 	
-	public boolean findTermInFields(String term, String... fields) {
-		
-		LanguageFieldFinder finder = new LanguageFieldFinder();
-		finder.findLanguageTablesWithFields(fields);
-		
-		return findTermInTables(term, finder.getLanguageTables());
+	private DbTermQueryBuilder builder;
+
+	public DbTermFinder(DbTermQueryBuilder builder) {
+		this.builder = builder;
 	}
 	
 	/**
-	 * Executes the queries for determining whether the given term is present in them.
+	 * Executes the queries for determining whether the given term is present in the
+	 * given (language) tables.
 	 */
-	private boolean findTermInTables(String term, List<LanguageTable> tablesToSearch) {
+	public boolean findTermInTables(String term, List<LanguageTable> tablesToSearch) {
 		
-		McGarnagle playground = null;
+		String lowerCaseTerm = term.toLowerCase();
+		tablesWithHits = new ArrayList<>();
 		
-		try {
+		try (McGarnagle playground = new McGarnagle(null)) {
 		
 			for (LanguageTable table : tablesToSearch) {
 				
-				// TODO: in geval van een hit -> dynamisch 'sleutelObject' aanmaken voor de tabel en daarin alle hits zetten,
-				// met primary key veldnaam-PK value paren + veld waarin de term gevonden is (dus: primary key-kolommen voor die tabel ophalen uit Syscat).
-			
-				playground = new McGarnagle(null);
-				playground.executeQuery(constructQueryForTable(term, table));
+				String query = builder.constructQueryForTable(lowerCaseTerm, table);
+				// Log the query, when in debug mode.
+				logger.debug(query);
 				
+				if (!playground.executeQuery(query)) {
+					logger.log("Either no results found, or something went wrong.");
+					continue;
+				}
 				
+				do {
+					
+					for (String fieldName : table.getFields()) {
+						String entry = playground.getString(fieldName);
+						// Check if the field is a legit hit.
+						if (entry != null && entry.toLowerCase().contains(lowerCaseTerm)) {
+							// Add it to the list of hits for this table.
+							Integer[] pk = determinePk(playground, table);
+							DbTermHit hit = table.getHit(pk);
+							if (hit == null) {
+								hit = new DbTermHit();
+								hit.setEntry(entry);
+								hit.setFieldName(fieldName);
+								hit.setPkValues(pk);
+								table.addHit(hit);
+							}
+							hit.addContent(builder.getLanguageToSearch(), entry);
+						}
+					}
+				} while (playground.next());
 				
+				tablesWithHits.add(table);
 			}
-			
 		} catch (SQLException sqlex) {
 			sqlex.printStackTrace();
 			return false;
-		} finally {
-			// TODO: make it so that this finally-block is not necessary at places where McGarnagle is called, because this shit is unacceptable.
-			if (playground != null)
-				playground.closeConnection();
-		}
+		} 
 		// If everything went smoothly:		
 		return true;
 	}
 	
-	private String constructQueryForTable(String term, LanguageTable table) {
-		StringBuilder query = new StringBuilder("select ");
-		
-		for (int i=0; i<table.getFields().size(); i++) {
-			if (i > 0) {
-				query.append(", ");
-			}
-			query.append(table.getFields().get(i));
+	private Integer[] determinePk(McGarnagle playground, LanguageTable table) throws SQLException {
+		Integer[] pkFields = new Integer[table.getPkFields().length];
+		for (int i=0; i<pkFields.length; i++) {
+			pkFields[i] = playground.getInt(table.getPkFields()[i]);
 		}
-		
-		query.append(" from ");
-		query.append(table.getName());
-		
-		query.append(" where ");
-
-		// Use '[spatie][term][spatie]', '[term][endOfString]' and '[endOfString][term]' for the search, 
-		// so only exact matches result in a hit (e.g. search for 'cover' != hit in case of 'coverage')
-		String termSpaced = " " + term + " ";
-		String termLeftSpaced = "%" + term;
-		String termRightSpaced = term + "%";
-		
-		for (int i=0; i<table.getFields().size(); i++) {
-			
-			if (i > 0) {
-				query.append(" or ");
-			}
-			String field = table.getFields().get(i);
-			String likeClause = field + " like " + termSpaced
-					+ " or " + field + " like " + termLeftSpaced
-					+ " or " + field + " like " + termRightSpaced;
-			
-			query.append(likeClause);
-		}
-		
-		return query.toString();
+		return pkFields;
+	}
+	
+	public List<LanguageTable> getTablesWithHits() {
+		return tablesWithHits;
 	}
 }

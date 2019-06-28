@@ -8,8 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import msgrsc.craplog.Fallible;
+import msgrsc.dao.DbTranslation;
 import msgrsc.imp.MrImporter;
-import msgrsc.utils.Fallible;
 import msgrsc.utils.Language;
 
 /**
@@ -43,7 +44,8 @@ public class TranslationRequestFileWriter implements Fallible {
 		
 		void append(String text) {
 			builder.append(";");
-			builder.append(text);
+			if (text != null)
+				builder.append(text);
 		}
 		
 		@Override
@@ -80,7 +82,7 @@ public class TranslationRequestFileWriter implements Fallible {
 			}
 		}
 		
-		String fileName = "requestedTranslationsFor" + bugNumber + ".csv";		
+		String fileName = "requestedMessageResourcesFor" + bugNumber + ".csv";		
 		Path file = directory.resolve(fileName);
 		
 		// Use ISO_8859_1 encoding, so Excel can interpret the un-escaped special characters. 
@@ -104,25 +106,55 @@ public class TranslationRequestFileWriter implements Fallible {
 			return false;
 		}
 		
+		String dbFileName = "requestedDatabaseTranslationsFor" + bugNumber + ".csv";		
+		Path dbFile = directory.resolve(dbFileName);
+		
+		// Use ISO_8859_1 encoding, so Excel can interpret the un-escaped special characters. 
+		try (BufferedWriter writer = Files.newBufferedWriter(dbFile, StandardCharsets.ISO_8859_1)) {
+			if (includeColumnHeaders) {
+				// We should include column headers in the output file.
+				String firstLine = composeFirstLineDb();
+				// Write the first line to file.
+				writer.write(firstLine);
+				writer.newLine();
+			}
+			
+			for (DbTranslation translation : translationRequest.getDbTranslations()) {
+				String line = composeLineDb(translation);
+				writer.write(line);
+				// Don't forget that line break!
+				writer.newLine();
+			}
+		} catch (IOException ioex) {
+			ioex.printStackTrace();
+			return false;
+		}
+
 		return true;
 	}
 	
-	
-	private String composeFirstLine() {
-		StringBuilder lineBuilder = new StringBuilder();
-		lineBuilder.append("QSD number");
-		lineBuilder.append(";Message resource key");
-		lineBuilder.append(";Original text EN");
-		lineBuilder.append(";Original text NL");
+	private String composeLineDb(DbTranslation translation) {
+		CsvStringBuilder lineBuilder = new CsvStringBuilder(translationRequest.getBugNumber());
+		lineBuilder.append(translation.getTable());
+		lineBuilder.append(translation.getKey());
+		lineBuilder.append(translation.getColumnName());
+		lineBuilder.append(translation.getTextEnglish());
+		lineBuilder.append(translation.getTextDutch());
 		
-		for (Language language : Language.foreignLanguages()) {
-			lineBuilder.append(";New text ");
-			lineBuilder.append(language.code);
+		boolean[] required = translation.getRequestedFor();
+		// Other columns are for translations per language. Each is filled with either:
+		for (int i=0; i<required.length; i++) {
+			if (required[i]) {
+				// 1) an empty String to indicate the translation is required;
+				lineBuilder.append("");
+			} else {
+				// 2) an 'x' to indicate the translation is not needed.
+				lineBuilder.append("x");
+			}
 		}
 		
 		return lineBuilder.toString();
 	}
-	
 	
 	private String composeLine(String messageKey) {
 		// First column contains the bug number.
@@ -151,6 +183,38 @@ public class TranslationRequestFileWriter implements Fallible {
 		return lineBuilder.toString();
 	}
 	
+	private String composeFirstLineDb() {
+		StringBuilder lineBuilder = new StringBuilder();
+		lineBuilder.append("QSD number");
+		lineBuilder.append(";Table");
+		lineBuilder.append(";Key");
+		lineBuilder.append(";Column");
+		lineBuilder.append(";Original text EN");
+		lineBuilder.append(";Original text NL");		
+		
+		for (Language language : Language.foreignLanguages()) {
+			lineBuilder.append(";New text ");
+			lineBuilder.append(language.code);
+		}
+
+		return lineBuilder.toString();
+	}
+	
+	private String composeFirstLine() {
+		StringBuilder lineBuilder = new StringBuilder();
+		lineBuilder.append("QSD number");
+		lineBuilder.append(";Message resource key");
+		lineBuilder.append(";Original text EN");
+		lineBuilder.append(";Original text NL");
+		
+		for (Language language : Language.foreignLanguages()) {
+			lineBuilder.append(";New text ");
+			lineBuilder.append(language.code);
+		}
+		
+		return lineBuilder.toString();
+	}
+
 	private String determineOriginalMessage(String originalMessageFromFile) {
 		if (originalMessageFromFile == null || originalMessageFromFile.equals("")) {
 			return "!!!orignal text missing !!!";

@@ -68,7 +68,6 @@ public class LineRewriter {
 				return false;
 			}
 		} 
-
 		
 		return true;
 	}

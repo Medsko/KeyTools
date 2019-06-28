@@ -8,15 +8,15 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
+import msgrsc.craplog.Fallible;
 import msgrsc.dao.MsgRscDir;
 import msgrsc.dao.MsgRscFile;
-import msgrsc.filewalk.MsgRscFileFinder;
+import msgrsc.find.MsgRscFileFinder;
 import msgrsc.io.LineRewriter;
 import msgrsc.io.MrCoupler;
 import msgrsc.io.MrFileReader;
 import msgrsc.io.MrKeyCoupler;
 import msgrsc.io.StringModifier;
-import msgrsc.utils.Fallible;
 
 /**
  * Imports the translations provided by the translation bureaus or Keylane colleagues.
@@ -53,9 +53,6 @@ public class MrImporter implements Fallible {
 		findByMessageKey = false;
 	}
 	
-	// TODO: big one, actually...link provided translations to a particular MR file and directory, 
-	// TODO: resulting in a smaller 'LanguageBundle' (new class) per MR file/directory? probably file.
-	
 	/**
 	 * Imports the message resources for the given bug number into the project located at
 	 * the given aggregate directory.
@@ -78,8 +75,10 @@ public class MrImporter implements Fallible {
 		if (!isInputValid(bugNumber, aggregateDir)) {
 			return false;
 		}
-		bareBugNumber = bugNumber.replaceAll("QqSsDd-", "");
+		bareBugNumber = bugNumber.replaceAll("[QqSsDd-]", "");
 
+		// TODO: this doesn't belong here. LanguageBundle should be constructed elsewhere,
+		// then set on the MrImporter.
 		LanguageBundleBuilder builder = new LanguageBundleBuilder(bugNumber);
 		String importDir = IMPORT_DIRECTORY + "/" + bugNumber;
 		if (!builder.buildFromExcelDirectory(importDir)) {
@@ -98,8 +97,7 @@ public class MrImporter implements Fallible {
 		try {
 			// Determine the directories and files that contain references to the
 			// bug number for which translations have been read from the import file.
-			// TODO: first, try to determine the directories and files that should be modified
-			// from the TranslationRequest for the bug.
+			// TODO: this should probably also be done somewhere else.
 			MsgRscFileFinder finder = determineFinder();
 			Files.walkFileTree(Paths.get(aggregateDir), finder);
 			List<MsgRscDir> mrDirectories = finder.getMsgRscDirectories();
@@ -113,7 +111,13 @@ public class MrImporter implements Fallible {
 			
 			// Rewrite the files, filling all provided translations.
 			for (MsgRscDir mrDir : mrDirectories) {
-				for (MsgRscFile mrFile : mrDir.getMsgRscFiles()) {
+				// TODO: testen of dit werkt.
+				// Combine the information- and messageResources files.
+				List<MsgRscFile> infoAndMrFiles = new ArrayList<>();
+				infoAndMrFiles.addAll(mrDir.getMsgRscFiles());
+				infoAndMrFiles.addAll(mrDir.getInfoFiles());
+				
+				for (MsgRscFile mrFile : infoAndMrFiles) {
 					// Determine which language's translations we're interested in for
 					// this file and set it as active it on the language bundle.
 					languageBundle.setActiveLanguage(mrFile.getLanguage());
@@ -244,5 +248,9 @@ public class MrImporter implements Fallible {
 
 	public void setFindByMessageKey(boolean findByMessageKey) {
 		this.findByMessageKey = findByMessageKey;
+	}
+
+	public LanguageBundle getLanguageBundle() {
+		return languageBundle;
 	}
 }

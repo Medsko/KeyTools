@@ -2,15 +2,19 @@ package msgrsc.imp;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.poi.EncryptedDocumentException;
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import msgrsc.dao.DbTranslation;
 import msgrsc.utils.Language;
 import msgrsc.utils.TranslationToolHelper;
 
@@ -23,16 +27,21 @@ public class MsgRscExcelReader {
 	private Integer columnContainingBugNumber;
 	private Integer columnContainingKey;
 	private Integer columnContainingTranslations;
+	private Integer columnContainingEnglishText;
 	
 	private DataFormatter formatter;
 	private TranslationToolHelper translationHelper;
 	
+	// OUTPUT
 	private LanguageBundle languageBundle;
+	// English text as key.
+	private Map<String, DbTranslation> dbTranslations;
 	
 	public MsgRscExcelReader(String bareBugNumber) {
 		this.bareBugNumber = bareBugNumber;
 		formatter = new DataFormatter();
 		translationHelper = new TranslationToolHelper();
+		dbTranslations = new HashMap<>();
 	}
 	
 	/**
@@ -51,7 +60,7 @@ public class MsgRscExcelReader {
 		fileLanguage = Language.fromStringContainsFullName(importFile);
 		languageBundle.setActiveLanguage(fileLanguage);
 		
-		try (Workbook workbook = WorkbookFactory.create(new File(importFile))){
+		try (Workbook workbook = WorkbookFactory.create(new File(importFile))) {
 			
 			Sheet msgRscSheet;
 			if ((msgRscSheet = workbook.getSheet("Message resources")) == null
@@ -80,11 +89,71 @@ public class MsgRscExcelReader {
 		return true;
 	}
 	
-	private boolean readFirstRow(Row topRow) {
+	private boolean readDbTranslations(Sheet dbTranslationSheet) {
+		// Parse the first row.
+		if (!readFirstRow(dbTranslationSheet.getRow(0))) {
+			System.out.println("Could not determine which columns hold the bug number, "
+					+ "key and translation for language: " + fileLanguage.toString());
+			return false;
+		}
+		
+		// Skip the first row, as we already extracted all useful information from it in 
+		// the previous step.
+		for (int i=1; i<dbTranslationSheet.getPhysicalNumberOfRows(); i++) {
+			Row currentRow = dbTranslationSheet.getRow(i);
+			// Check whether this translation is relevant for the bug number.
+			if (currentRow == null) {
+				System.out.println("Faulty row: " + i);
+				continue;
+			}
+			String rowBugNumber = getCellContent(currentRow, columnContainingBugNumber);
+
+			if (!rowBugNumber.contains(bareBugNumber)) {
+				// This translation is for another bug. Skip it.
+				continue;
+			}
+			// This translation is relevant. Get the original text and translation, and
+			// add it to the list.
+			String englishText = getCellContent(currentRow, columnContainingEnglishText).trim();
+			String translation = getCellContent(currentRow, columnContainingTranslations).trim();
+			
+			if (translation.equalsIgnoreCase("x")) {
+				// This translation has already been provided, or was not deemed necessary.
+				continue;
+			}
+			
+			// Replace the special characters with their unicode equivalents.
+			// Skip for now for DB translations: this does not appear to yield desired results. 
+			translation = translationHelper.replaceSpecialCharactersByCodes(translation);
+			translation = translationHelper.replaceCodeBySpecialCharacters(translation);
+			
+			System.out.println("Database translation: " + englishText + ", translation: " + translation);
+			// Escape single quotes (by adding a second quote).
+			translation = translation.replace("'", "''");
+
+			// Check if a translation object is already present for this text.
+			DbTranslation dbTranslation = dbTranslations.get(englishText);
+			if (dbTranslation == null) {
+				// No translation yet. Create one now.
+				dbTranslation = new DbTranslation();
+				dbTranslation.setTextEnglish(englishText);
+				dbTranslations.put(englishText, dbTranslation);
+			}
+			dbTranslation.addTranslation(fileLanguage, translation);
+		}
+		return true;
+	}
+	
+	protected boolean readFirstRow(Row topRow) {
+		// Reset the column variables.
+		columnContainingBugNumber = null;
+		columnContainingKey = null;
+		columnContainingTranslations = null;
+		columnContainingEnglishText = null;
 
 		for (int i=0; i<topRow.getLastCellNum(); i++) {
 			// Get the content of the cell as a String.
-			String cellContent = formatter.formatCellValue(topRow.getCell(i));
+			String cellContent = getCellContent(topRow, i);
 			
 			if (cellContent.contains("QSD")) {
 				// This column contains the bug numbers for which the translations 
@@ -92,10 +161,15 @@ public class MsgRscExcelReader {
 				columnContainingBugNumber = i;
 			}
 			// Determine which column contains the message keys.
-			if (cellContent.contains("key")) {
+			if (cellContent.toLowerCase().contains("key")) {
 				// This is the column with message keys. Save the column number.
 				columnContainingKey = i;
 			}
+			// Check if this column holds the English text.
+			if (cellContent.contains(Language.ENGLISH.code)) {
+				columnContainingEnglishText = i;
+			}
+			
 			// Determine which column is relevant for the current language.
 			if (cellContent.contains(fileLanguage.code)) {
 				// This column contains the new translations. Save the column number and
@@ -107,7 +181,8 @@ public class MsgRscExcelReader {
 		// If all three necessary column numbers could be determined, read was successful.
 		return columnContainingBugNumber != null 
 				&& columnContainingKey != null 
-				&& columnContainingTranslations != null;
+				&& columnContainingTranslations != null
+				&& columnContainingEnglishText != null;
 	}
 	
 	private boolean readMessageResources(Sheet msgRscSheet) {
@@ -151,25 +226,18 @@ public class MsgRscExcelReader {
 			System.out.println("Message resource key: " + key + ", translation: " + translation);
 			languageBundle.addMessage(key, translation);
 		}
-
-		// Reset the column variables.
-		columnContainingBugNumber = null;
-		columnContainingKey = null;
-		columnContainingTranslations = null;
 		
 		return true;
 	}
 	
-	private String getCellContent(Row row, int columnNumber) {
+	public List<DbTranslation> getDbTranslations() {
+		return new ArrayList<DbTranslation>(dbTranslations.values());
+	}
+	
+	protected String getCellContent(Row row, int columnNumber) {
 		return formatter.formatCellValue(row.getCell(columnNumber));
 	}
-	
-	private boolean readDbTranslations(Sheet dbTranslations) {
-		// TODO: build this :)
 		
-		return true;
-	}
-	
 	public void setLanguageBundle(LanguageBundle languageBundle) {
 		this.languageBundle = languageBundle;
 	}

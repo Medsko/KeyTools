@@ -17,8 +17,6 @@ public class MsgRscFile {
 	
 	private String fullPath;
 	
-	private List<String> messagesWithSpecialChars;
-
 	private List<String> missingMessageKeys;
 	
 	private Map<String, String> messagesOfInterest;
@@ -28,7 +26,6 @@ public class MsgRscFile {
 	private Type type;
 	
 	public MsgRscFile() {
-		messagesWithSpecialChars = new ArrayList<>();
 		messagesOfInterest = new HashMap<>();
 	}
 	
@@ -70,18 +67,6 @@ public class MsgRscFile {
 
 	public void setMissingMessageKeys(List<String> missingMessageKeys) {
 		this.missingMessageKeys = missingMessageKeys;
-	}
-
-	public void addMessageWithSpecialChars(String messageKey) {
-		messagesWithSpecialChars.add(messageKey);
-	}
-
-	public List<String> getMessagesWithSpecialChars() {
-		return messagesWithSpecialChars;
-	}
-	
-	public boolean containsMessagesWithSpecialChars() {
-		return messagesWithSpecialChars.size() > 0;
 	}
 
 	public void putMessageOfInterest(String key, String message) {

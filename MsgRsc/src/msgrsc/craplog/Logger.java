@@ -1,4 +1,4 @@
-package msgrsc.utils;
+package msgrsc.craplog;
 
 public interface Logger {
 
@@ -6,4 +6,7 @@ public interface Logger {
 	
 	void log(Object object);
 	
+	void debug(Object object);
+	
+	void error(Object object);
 }

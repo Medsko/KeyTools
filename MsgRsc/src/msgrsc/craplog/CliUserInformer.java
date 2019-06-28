@@ -1,4 +1,4 @@
-package msgrsc.utils;
+package msgrsc.craplog;
 
 public class CliUserInformer implements UserInformer {
 

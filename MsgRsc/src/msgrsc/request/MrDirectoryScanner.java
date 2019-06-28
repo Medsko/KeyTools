@@ -109,9 +109,8 @@ public class MrDirectoryScanner {
 			return null;
 		}
 		
-		String nextKey;
-		while ((nextKey = reader.getKey()) != null) {
-			requiredKeys.add(nextKey);
+		while (reader.next()) {
+			requiredKeys.add(reader.getKey());
 		}
 		
 		return requiredKeys;

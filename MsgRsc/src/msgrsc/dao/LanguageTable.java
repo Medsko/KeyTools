@@ -1,8 +1,10 @@
 package msgrsc.dao;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Minimal representation of a QIS language table. 
@@ -17,12 +19,15 @@ public class LanguageTable {
 	
 	private List<String> fields;
 	
-	/** The hits that were found for the searched term in this table. */
-	private Map<String, Integer> hits;
+	private String[] pkFields;
+	
+	/** The hits that were found for the searched term in this table. */	
+	private List<DbTermHit> hits;
 	
 	public LanguageTable(String name) {
 		this.name = name;
 		fields = new ArrayList<>();
+		hits = new ArrayList<>();
 	}
 
 	public String getName() {
@@ -40,7 +45,61 @@ public class LanguageTable {
 	public List<String> getFields() {
 		return fields;
 	}
+	
+	public List<DbTermHit> getHits() {
+		return hits;
+	}
 
+	public String[] getPkFields() {
+		return pkFields;
+	}
+
+	public void setPkFields(String[] pkFields) {
+		this.pkFields = pkFields;
+	}
+
+	public void addHit(DbTermHit hit) {
+		hits.add(hit);
+	}
+	
+	public DbTermHit getHit(Integer[] pk) {
+		for (DbTermHit hit : hits) {
+			if (Arrays.equals(hit.getPkValues(), pk)) {
+				return hit;
+			}
+		}
+		return null;
+	}
+	
+	@Override
+	public String toString() {
+		String toString = "Table " + name + ", fields: ";
+		for (int i=0; i<fields.size(); i++) {
+			if (i > 0) 
+				toString += ", ";
+			toString += fields.get(i);
+		}
+		return toString;
+	}
+	
+	/**
+	 * Filters out all {@link DbTermHit}s that do not conform to given condition.
+	 */
+	public void filterHits(Predicate<DbTermHit> condition) {
+		hits = hits.stream()
+				.filter(condition)
+				.collect(Collectors.toList());
+	}
+	
+	public String toStringWithHits() {
+		String toString = "Table " + name + ", hits: ";
+		for (DbTermHit hit : hits) {
+			toString += System.lineSeparator() + "\t";
+			toString += hit;
+		}
+		return toString;
+	}
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

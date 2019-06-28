@@ -1,4 +1,4 @@
-package msgrsc.filewalk;
+package msgrsc.find;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
