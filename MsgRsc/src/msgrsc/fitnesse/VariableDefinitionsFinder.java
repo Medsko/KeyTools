@@ -29,15 +29,15 @@ public class VariableDefinitionsFinder implements Fallible {
 	public VariableDefinitionsFinder(String aggregateDir) {
 		this.aggregateDir = aggregateDir;
 	}
-	
+
+	/**
+	 * Scans Axon message resource files for the given list of message resources and collects the
+	 * translations. These can then be accessed via {@link #getVariablesPerLanguage()}.
+	 * 
+	 * @param missingMessageResources - a Map of missing message resources per language.
+	 * @return {@code true} if successful. 
+	 */
 	public boolean findMessageResourceDefinitions(Map<Language, List<MessageResource>> missingMessageResources) {
-		// Find all missing variable definitions.
-		// TODO: get this out of here - set a Map<Language, List<MessageResource>> on this class as input.
-		MissingDefinitionFinder finder = new MissingDefinitionFinder(aggregateDir);
-		if (!finder.findMissingMesRes()) {
-			logger.error("Failed to find the missing variable definitions!");
-			return false;
-		}
 		// Find all directories and files containing message resources.
 		mesResDirs = IOUtils.findMesResDirs(aggregateDir);
 
@@ -45,14 +45,14 @@ public class VariableDefinitionsFinder implements Fallible {
 		variablesPerLanguage = missingMessageResources;
 		
 		if (mesResDirs == null) {
-			logger.error("Failed to collect all directories containing message resources!");
+			log.error("Failed to collect all directories containing message resources!");
 			return false;
 		}
 		
 		for (Language language : variablesPerLanguage.keySet()) {
 			currentLanguage = language;
 			if (!findMissingMesRes(variablesPerLanguage.get(language))) {
-				logger.error("Failed to find the required message resources!");
+				log.error("Failed to find the required message resources!");
 				return false;
 			}
 		}
@@ -61,6 +61,7 @@ public class VariableDefinitionsFinder implements Fallible {
 	}
 	
 	private boolean findMissingMesRes(List<MessageResource> missingVariables) {
+		// Create a shallow copy of the list to avoid ConcurrentModificationExceptions.
 		List<MessageResource> stillMissing = new ArrayList<>(missingVariables);
 		
 		outer:
@@ -72,13 +73,13 @@ public class VariableDefinitionsFinder implements Fallible {
 				}
 				
 				if (!scanMesResFile(file.getFullPath(), stillMissing)) {
-					logger.error("Failed to scan file: " + file.getFullPath());
+					log.error("Failed to scan file: " + file.getFullPath());
 					return false;
 				}
 				
 				if (stillMissing.size() == 0) {
 					// All missing resources have been found for this language.
-					logger.debug("All missing message resources for " 
+					log.debug("All missing message resources for " 
 							+ currentLanguage.getPrettyName() + " have been found.");
 					break outer;
 				}

@@ -33,10 +33,10 @@ public class DbTermFinder implements Fallible {
 				
 				String query = builder.constructQueryForTable(lowerCaseTerm, table);
 				// Log the query, when in debug mode.
-				logger.debug(query);
+				log.debug(query);
 				
 				if (!playground.executeQuery(query)) {
-					logger.log("Either no results found, or something went wrong.");
+					log.log("Either no results found, or something went wrong.");
 					continue;
 				}
 				

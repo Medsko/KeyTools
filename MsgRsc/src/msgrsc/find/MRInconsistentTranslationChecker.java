@@ -89,7 +89,7 @@ public class MRInconsistentTranslationChecker implements Fallible {
 						+ resultFile.toString());
 			} catch (IOException e) {
 				e.printStackTrace();
-				logger.log("find - failed to write findings to file!");
+				log.log("find - failed to write findings to file!");
 				return false;
 			}
 		}

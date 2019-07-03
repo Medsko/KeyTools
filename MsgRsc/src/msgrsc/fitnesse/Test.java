@@ -30,6 +30,8 @@ public class Test {
 		// Puntje om nog te overdenken: de Map<Language, List<MessageResource>> als argument aan deze methode meegeven?
 		if (!writer.write()) {
 			p("Fail!");
+		} else {
+			p("Success!");
 		}
 	}
 	
@@ -59,14 +61,14 @@ public class Test {
 	}
 	
 	private static Map<Language, List<MessageResource>> findMissingMesRes(String aggregateDir) {
+		// 1) Find missing variable definitions.
 		MissingDefinitionFinder missDefFinder = new MissingDefinitionFinder(aggregateDir);
 		if (!missDefFinder.findMissingMesRes()) {
 			p("Failed to find the missing variable definitions!");
 			return null;
 		}
-
+		// 2) Find the messages for the keys found in 1). 
 		VariableDefinitionsFinder updater = new VariableDefinitionsFinder(aggregateDir);
-
 		if (!updater.findMessageResourceDefinitions(missDefFinder.getMissingResources())) {
 			p("Fail!");
 			return null;

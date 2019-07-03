@@ -41,6 +41,7 @@ public class LanguageBundle {
 			throw new IllegalStateException("The LanguageBundle has not been"
 					+ " activated for any language!");
 		}
+		
 		if (unsortedBundle == null) {
 			// This bundle has been set to output mode.
 			throw new IllegalStateException("The LanguageBundle has been put"
@@ -125,7 +126,6 @@ public class LanguageBundle {
 	public String getBareBugNumber() {
 		return bareBugNumber;
 	}
-	
 	
 	
 	/*

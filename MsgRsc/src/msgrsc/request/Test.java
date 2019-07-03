@@ -8,7 +8,6 @@ public class Test {
 		testPlaceholderAppender();
 	}
 	
-	
 	private static void testPlaceholderAppender() {
 		String bugNumber = "QSD-12345"; // Test bug number..
 		String aggregateDir = "C:\\src\\QSD-54770";

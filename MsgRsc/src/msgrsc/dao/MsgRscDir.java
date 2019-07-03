@@ -89,6 +89,7 @@ public class MsgRscDir {
 		}
 	}
 	
+	
 	/**
 	 * Indicates whether this directory contains message resource files for all
 	 * supported languages.

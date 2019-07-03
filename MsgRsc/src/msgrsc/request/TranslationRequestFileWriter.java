@@ -1,7 +1,6 @@
 package msgrsc.request;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -10,7 +9,7 @@ import java.nio.file.Paths;
 
 import msgrsc.craplog.Fallible;
 import msgrsc.dao.DbTranslation;
-import msgrsc.imp.MrImporter;
+import msgrsc.utils.IOUtils;
 import msgrsc.utils.Language;
 
 /**
@@ -69,8 +68,7 @@ public class TranslationRequestFileWriter implements Fallible {
 		
 		String bugNumber = translationRequest.getBugNumber();
 		// Construct the path for the request file.
-		String directoryName = MrImporter.IMPORT_DIRECTORY
-				+ File.separator + bugNumber;
+		String directoryName = IOUtils.MR_IMPORT_PATH + bugNumber;
 		Path directory = Paths.get(directoryName);
 		
 		if (!Files.isDirectory(directory)) {

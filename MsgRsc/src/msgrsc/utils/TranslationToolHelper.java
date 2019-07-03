@@ -15,8 +15,6 @@ public class TranslationToolHelper {
 
 	public TranslationToolHelper() {
 		// Initialize special characters
-		// TODO: Add characters for other languages as needed or make this generic so that for instance
-		// all non-ASCII chars are replaced by corresponding codes
 		
 		// Swedish characters
 		specialCharacterReplacements.put("\u00E4", "\\u00E4"); // auml

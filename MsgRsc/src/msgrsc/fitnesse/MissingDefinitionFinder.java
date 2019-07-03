@@ -11,6 +11,7 @@ import msgrsc.craplog.Fallible;
 import msgrsc.dao.MessageResource;
 import msgrsc.utils.IOUtils;
 import msgrsc.utils.Language;
+import msgrsc.utils.StringUtil;
 
 /**
  * Determines what variables are declared in VariableNamesInUse.wiki, but not in
@@ -42,7 +43,7 @@ public class MissingDefinitionFinder implements Fallible {
 		// Select all lines that start with "mr_" from the VariableNamesInUse.wiki file.
 		variableNamesInUse = IOUtils.collectLines(file, line -> line.startsWith("mr_"));
 		if (variableNamesInUse == null) {
-			logger.error("Failed to read variable names in use from file: " + file);
+			log.error("Failed to read variable names in use from file: " + file);
 			return false;
 		}
 		
@@ -64,7 +65,7 @@ public class MissingDefinitionFinder implements Fallible {
 		String file = determineFilePath(fileName);
 		variableDefinitions = IOUtils.collectLines(file, line -> line.contains("mr_"));
 		if (variableDefinitions == null) {
-			logger.error("Failed to read variable definitions from file: " + file);
+			log.error("Failed to read variable definitions from file: " + file);
 			return false;
 		}
 
@@ -74,9 +75,12 @@ public class MissingDefinitionFinder implements Fallible {
 			variableNameInUse = variableNameInUse.trim();
 			if (!isDefined(variableNameInUse)) {
 				// This variable name is missing. Add it to the list.
-				String key = variableNameInUse.replace("mr_", "");
-				MessageResource mesRes = new MessageResource(key);
-				missingVariables.add(mesRes);
+				missingVariables.add(createMessageResource(variableNameInUse));
+			}
+		}
+		for (String variableDefinition : variableDefinitions) {
+			if (StringUtil.containsPlaceholder(variableDefinition)) {
+				missingVariables.add(createMessageResource(variableDefinition));
 			}
 		}
 		// If we found missing variables, add them to the map.
@@ -88,6 +92,12 @@ public class MissingDefinitionFinder implements Fallible {
 		return true;
 	}
 	
+	private MessageResource createMessageResource(String variableName) {
+		String key = variableName.replace("mr_", "");
+		MessageResource mesRes = new MessageResource(key);
+		return mesRes;
+	}
+		
 	/**
 	 * Checks whether the given variable name is present in the VariableDefinitions
 	 * file for the language we are currently scanning for.
@@ -97,7 +107,7 @@ public class MissingDefinitionFinder implements Fallible {
 	 */
 	private boolean isDefined(String variableNameInUse) {
 		for (String variableDefinition : variableDefinitions) {
-			if (variableDefinition.contains(variableNameInUse)) {
+			if (variableDefinition.contains(variableNameInUse + " ")) {
 				return true;
 			}
 		}

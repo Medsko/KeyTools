@@ -15,7 +15,7 @@ public interface Fallible {
 
 	UserInformer informer = InformerFactory.getUserInformer();
 	
-	Logger logger = LoggerFactory.getLogger();
+	Logger log = LoggerFactory.getLogger();
 	
 	
 }

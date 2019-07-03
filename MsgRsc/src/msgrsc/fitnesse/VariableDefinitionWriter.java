@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import msgrsc.dao.MessageResource;
-import msgrsc.dao.MessageResourceTable;
 import msgrsc.io.AppendingFileWriter;
 import msgrsc.utils.IOUtils;
 import msgrsc.utils.Language;
@@ -22,13 +21,14 @@ public class VariableDefinitionWriter {
 	
 	private Map<Language, List<MessageResource>> newVariableDefinitions;
 	
-	// TODO: when MessageResourceTable is available, use this to keep track of which translations are missing for which language(s).
-	private MessageResourceTable missingMessageResources;
-
+	// Keeps track of the number of variables defined by this Writer.
+	private int counter;
+	
 	public VariableDefinitionWriter(String aggregateDir, 
 			Map<Language, List<MessageResource>> newVariableDefinitions) {
 		this.aggregateDir = aggregateDir;
 		this.newVariableDefinitions = newVariableDefinitions;
+		counter = 0;
 	}
 	
 	public boolean write() {
@@ -53,6 +53,7 @@ public class VariableDefinitionWriter {
 					lineToAppend += " {!-" + message + "-!}";
 					// Write the resulting line to file.
 					writer.writeLine(lineToAppend);
+					counter++;
 				}
 			} catch (IOException ioex) {
 				ioex.printStackTrace();
@@ -61,6 +62,10 @@ public class VariableDefinitionWriter {
 		}
 		
 		return true;
+	}
+
+	public int getNrOfVariablesDefined() {
+		return counter;
 	}
 	
 }

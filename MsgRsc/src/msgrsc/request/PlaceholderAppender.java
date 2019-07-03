@@ -33,7 +33,7 @@ public class PlaceholderAppender implements Fallible {
 		
 		for (MsgRscDir mrDir : mrDirs) {
 			if (!appendPlaceHolders(mrDir)) {
-				logger.error("Failed while processing directory: " 
+				log.error("Failed while processing directory: " 
 						+ mrDir.getPath());
 			}
 		}
@@ -45,7 +45,7 @@ public class PlaceholderAppender implements Fallible {
 		// Find all missing resources in the directory.
 		MrDirectoryScanner scanner = new MrDirectoryScanner(mrDir);
 		if (!scanner.scan()) {
-			logger.log("buildFromFullScan - scanner failed.");
+			log.log("buildFromFullScan - scanner failed.");
 			return false;
 		}
 		
@@ -68,7 +68,7 @@ public class PlaceholderAppender implements Fallible {
 				// For now, append all message keys for missing resources to the end
 				// of the file, and let IntelliJ sort them out.
 				if (!appendPlaceHolders(file)) {
-					logger.log("buildFromFullScan - writing the placeholders failed.");
+					log.log("buildFromFullScan - writing the placeholders failed.");
 					return false;
 				}
 			}
@@ -91,14 +91,14 @@ public class PlaceholderAppender implements Fallible {
 				placeHolderLine += "=toBeTranslatedFor" + file.getLanguage().getPrettyCode();
 				placeHolderLine += "In" + bugNumber;
 				
-				logger.log("Appended placeholder " + placeHolderLine 
+				log.log("Appended placeholder " + placeHolderLine 
 					+ " to file " + file.getFullPath());
 				total++;
 				
 				// Append the place holder to the line.
 				writer.writeLine(placeHolderLine);
 			}
-			logger.log("Total number of missing translations found so far: " + total);
+			log.log("Total number of missing translations found so far: " + total);
 		} catch (IOException ioex) {
 			ioex.printStackTrace();
 			return false;

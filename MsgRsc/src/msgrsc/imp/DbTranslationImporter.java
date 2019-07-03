@@ -51,7 +51,7 @@ public class DbTranslationImporter implements Fallible {
 				// For each file:
 				// 1) Construct a LiquibaseElement from the file contents.
 				if (!reader.readFile(file.getFullPath())) {
-					logger.log("importDbTranslations - failed to parse file " + file.getFullPath());
+					log.log("importDbTranslations - failed to parse file " + file.getFullPath());
 					return false;
 				}
 				// 2) find matches for provided translation by English text.
@@ -59,7 +59,7 @@ public class DbTranslationImporter implements Fallible {
 				
 				// 3) rewrite the file.
 				if (!rewriteFile(file.getFullPath(), translatedTags)) {
-					logger.log("Failed while rewriting file: " + file.getFullPath());
+					log.log("Failed while rewriting file: " + file.getFullPath());
 				}
 			}
 		}		
@@ -127,7 +127,7 @@ public class DbTranslationImporter implements Fallible {
 		
 		if (!it.hasNext()) {
 			// No matches found for this file. Something went wrong.
-			logger.log("rewriteFile - empty list! No translations matched for file: " + fullPath);
+			log.log("rewriteFile - empty list! No translations matched for file: " + fullPath);
 			return false;
 		}
 		LiquibaseElement nextTranslatedTag = it.next();

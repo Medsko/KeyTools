@@ -9,7 +9,6 @@ import java.util.Map;
 import java.util.Set;
 
 import msgrsc.dao.DbTranslation;
-import msgrsc.dao.MsgRscDir;
 import msgrsc.utils.Language;
 
 /**
@@ -34,15 +33,7 @@ public class TranslationRequest {
 	private Map<String, String> englishMessages;
 	
 	private List<DbTranslation> dbTranslations;
-	
-	/**
-	 * The directories in which the files reside from which the requested translations 
-	 * where distilled. Might be nice to save to a database, so that when the requested
-	 * translations are ready to be loaded into a project, there is no need to scan
-	 * through all MR files for the bug number. 
-	 */
-	private List<MsgRscDir> directories;
-	
+		
 	public TranslationRequest(String bugNumber) {
 		this.bugNumber = bugNumber;
 		requestedResources = new HashMap<>();

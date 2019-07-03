@@ -17,7 +17,7 @@ public class IOUtils {
 
 	public final static String MR_PATH = "C:\\MsgRsc\\";
 	
-	public final static String MR_IMPORT_PATH = "C:\\MsgRscImport\\";
+	public final static String MR_IMPORT_PATH = "C:\\MsgRsc\\";
 	
 	public final static String RELATIVE_FITNESSE_LANG_PATH = "KeylaneFitNesse\\wiki\\FitNesseRoot\\Keylane\\Lang";
 	

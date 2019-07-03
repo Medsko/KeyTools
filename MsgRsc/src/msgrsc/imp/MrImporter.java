@@ -17,6 +17,7 @@ import msgrsc.io.MrCoupler;
 import msgrsc.io.MrFileReader;
 import msgrsc.io.MrKeyCoupler;
 import msgrsc.io.StringModifier;
+import msgrsc.utils.IOUtils;
 
 /**
  * Imports the translations provided by the translation bureaus or Keylane colleagues.
@@ -24,8 +25,6 @@ import msgrsc.io.StringModifier;
  * is used to read in the translations and...build a {@link LanguageBundle} from them (wow).
  */
 public class MrImporter implements Fallible {
-	
-	public final static String IMPORT_DIRECTORY = "C:/MsgRscImport";
 	
 	private LanguageBundle languageBundle;
 	
@@ -35,7 +34,7 @@ public class MrImporter implements Fallible {
 	
 	private boolean isDebugMode;
 	
-	/** 
+	/**
 	 * If {@code true}, the provided translations are matched based on their message key.
 	 * Otherwise, the bug number is used for this, i.e. only messages that have a placeholder
 	 * are filled. 
@@ -60,7 +59,7 @@ public class MrImporter implements Fallible {
 	 * NB: the bugNumber parameter will also be used to determine the directory from 
 	 * which the Excel files will be read: e.g. for bug QSD-12345, this 
 	 * {@link MrImporter} will try to read all Excel files present in the 
-	 * C:\MsgRscImport\QSD-12345 directory. If this directory does not exist, processing
+	 * C:\MsgRsc\QSD-12345 directory. If this directory does not exist, processing
 	 * will fail. If no Excel files have been put into this directory,  processing will 
 	 * be done really quick...
 	 * </p>
@@ -80,16 +79,16 @@ public class MrImporter implements Fallible {
 		// TODO: this doesn't belong here. LanguageBundle should be constructed elsewhere,
 		// then set on the MrImporter.
 		LanguageBundleBuilder builder = new LanguageBundleBuilder(bugNumber);
-		String importDir = IMPORT_DIRECTORY + "/" + bugNumber;
+		String importDir = IOUtils.MR_IMPORT_PATH + bugNumber;
 		if (!builder.buildFromExcelDirectory(importDir)) {
-			logger.log("MsgRscImporter - importMR - Failed to construct the language"
+			log.log("MsgRscImporter - importMR - Failed to construct the language"
 					+ " bundles from the Excel files in the import directory.");
 			return false;
 		}
 		
 		languageBundle = builder.getLanguageBundle();
 		if (languageBundle.isEmpty()) {
-			logger.log("MsgRscImporter-importMR - no translations found in directory " 
+			log.log("MsgRscImporter-importMR - no translations found in directory " 
 					+ importDir + " for bug number " + bugNumber);
 			return true;
 		}
@@ -111,7 +110,6 @@ public class MrImporter implements Fallible {
 			
 			// Rewrite the files, filling all provided translations.
 			for (MsgRscDir mrDir : mrDirectories) {
-				// TODO: testen of dit werkt.
 				// Combine the information- and messageResources files.
 				List<MsgRscFile> infoAndMrFiles = new ArrayList<>();
 				infoAndMrFiles.addAll(mrDir.getMsgRscFiles());
@@ -125,7 +123,7 @@ public class MrImporter implements Fallible {
 					// Do not let the rewriter replace the original file, as we want to
 					// do that in batch (or not) in case of success (or failure).
 					if (!rewriter.rewrite(mrFile.getFullPath(), false)) {
-						logger.log("importMR - failed while importing to file " 
+						log.log("importMR - failed while importing to file " 
 								+ mrFile.getFullPath());
 						failedFiles.add(mrFile.getFullPath());
 					} else {
@@ -153,7 +151,7 @@ public class MrImporter implements Fallible {
 				Path failedFilePath = Paths.get(failedFile);
 				Path failedTempFilePath = failedFilePath.resolve(determineTempFileName(failedFile));
 				if (!Files.deleteIfExists(failedTempFilePath)) {
-					logger.log("importMR - failed to delete temporary file " + failedTempFilePath);
+					log.log("importMR - failed to delete temporary file " + failedTempFilePath);
 					return false;
 				}
 			}
@@ -222,18 +220,18 @@ public class MrImporter implements Fallible {
 		
 		// Bug number should follow format 'QSD-12345' (hyphen may be omitted).
 		if (!bugNumber.matches("QSD-?\\d{5}")) {
-			logger.log("MrImporter.isInputValid - input bug number not valid!");
+			log.log("MrImporter.isInputValid - input bug number not valid!");
 			return false;
 		}
 
-		String importDir = IMPORT_DIRECTORY + "/" + bugNumber;
+		String importDir = IOUtils.MR_IMPORT_PATH + bugNumber;
 		if (!Files.isDirectory(Paths.get(importDir))) {
-			logger.log("MrImporter.isInputValid - import directory for given bug number does not exist!");
+			log.log("MrImporter.isInputValid - import directory for given bug number does not exist!");
 			return false;
 		}
 		
 		if (!Files.isDirectory(Paths.get(aggregateDir))) {
-			logger.log("MrImporter.isInputValid - input aggregate/project directory does not exist!");
+			log.log("MrImporter.isInputValid - input aggregate/project directory does not exist!");
 			return false;
 		}
 

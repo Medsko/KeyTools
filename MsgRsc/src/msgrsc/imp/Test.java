@@ -46,7 +46,7 @@ public class Test {
 	}
 	
 	private static void repeatedTestMrImporter() {
-		// Debug-mode-activated importer.
+		// Debug-mode-deactivated importer.
 		MrImporter importer = new MrImporter(false);
 		
 		String bugNumber = "QSD-52754";

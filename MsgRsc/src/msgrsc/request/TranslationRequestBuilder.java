@@ -69,7 +69,7 @@ public class TranslationRequestBuilder implements Fallible {
 
 		if (mrDirectories == null) {
 			// Exception occurred while trying to determine all MR directories.
-			logger.error("I/O error while trying to determine all directories containing "
+			log.error("I/O error while trying to determine all directories containing "
 					+ "message resource files under aggregate directory: " + aggregateDir);
 			return false;
 		}
@@ -88,7 +88,7 @@ public class TranslationRequestBuilder implements Fallible {
 		
 		for (DbDir dir : directoriesToScan) {
 			if (!scanDbDirectory(dir)) {
-				logger.log("buildRequest - failed to scan directory!");
+				log.log("buildRequest - failed to scan directory!");
 				return false;
 			}
 		}
@@ -105,7 +105,7 @@ public class TranslationRequestBuilder implements Fallible {
 		LiquibaseFileReader reader = new LiquibaseFileReader();
 		for (DbFile file : dir.getFiles()) {
 			if (!reader.readFile(file.getFullPath())) {
-				logger.log("scanDbDirectory - failed to read file: " 
+				log.log("scanDbDirectory - failed to read file: " 
 						+ file.getFullPath());
 				return false;
 			}
@@ -121,7 +121,7 @@ public class TranslationRequestBuilder implements Fallible {
 			for (LiquibaseElement insTrans : translations) {
 				List<DbTranslation> dbTranslations = builder.build(insTrans);
 				if (dbTranslations.size() == 0) {
-					logger.log("scanDbDirectory - failed to build translation from "
+					log.log("scanDbDirectory - failed to build translation from "
 							+ "insertTranslations element!");
 					return false;
 				}
@@ -175,7 +175,7 @@ public class TranslationRequestBuilder implements Fallible {
 			// Dutch and English translations for them in the corresponding message resource files.
 			for (Path nlEnMsgRscFile : dutchAndEnglishMsgRscFiles) {
 				if (!findPresentMessages(nlEnMsgRscFile)) {
-					logger.log("Failed to read the existing messages from file: " + nlEnMsgRscFile);
+					log.log("Failed to read the existing messages from file: " + nlEnMsgRscFile);
 					return false;
 				}
 			}
@@ -194,7 +194,7 @@ public class TranslationRequestBuilder implements Fallible {
 			// Dutch and English translations for them in the corresponding message resource files.
 			for (Path nlEnMsgRscFile : dutchAndEnglishMsgRscFiles) {
 				if (!findPresentMessages(nlEnMsgRscFile)) {
-					logger.log("Failed to read the existing messages from file: " + nlEnMsgRscFile);
+					log.log("Failed to read the existing messages from file: " + nlEnMsgRscFile);
 					return false;
 				}
 			}
@@ -222,7 +222,7 @@ public class TranslationRequestBuilder implements Fallible {
 		
 		if (!Language.DUTCH.equals(activeLanguage) && !Language.ENGLISH.equals(activeLanguage)) {
 			// We are only looking for messages in the languages that we do not request from the translator.
-			logger.log("Translations for language " + activeLanguage + " have to be"
+			log.log("Translations for language " + activeLanguage + " have to be"
 					+ " requested from the translator!");
 		}
 		// Set it as active language on the TranslationRequest.
@@ -230,7 +230,7 @@ public class TranslationRequestBuilder implements Fallible {
 
 		MrFileReader reader = new MrFileReader();
 		if (!reader.readFile(msgRscFile.toString())) {
-			logger.log("findPresentMessages - the file reader failed!");
+			log.log("findPresentMessages - the file reader failed!");
 			return false;
 		}
 		
@@ -276,7 +276,7 @@ public class TranslationRequestBuilder implements Fallible {
 		translationRequest.setActiveLanguage(activeLanguage);
 		MrFileReader reader = new MrFileReader();
 		if (!reader.readFile(msgRscFile.toString())) {
-			logger.log("findByBugNumber - failed to read the message resource file!");
+			log.log("findByBugNumber - failed to read the message resource file!");
 			return false;
 		}
 		

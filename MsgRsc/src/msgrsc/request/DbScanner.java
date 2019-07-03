@@ -40,7 +40,7 @@ public class DbScanner implements Fallible {
 		
 		if (directoriesToScan.size() == 0) {
 			// No files to scan. Something probably went wrong. 
-			logger.log("No liquibase script files were found to scan!");
+			log.log("No liquibase script files were found to scan!");
 			return false;
 		}
 		

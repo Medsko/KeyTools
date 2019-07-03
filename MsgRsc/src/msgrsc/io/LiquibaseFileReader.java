@@ -45,7 +45,7 @@ public class LiquibaseFileReader implements Fallible {
 						// End of a multiline tag.
 						isMultiLine = false;
 						if (!evaluate(multiLineTag)) {
-							logger.log("readFile - failed to parse tag: " + multiLineTag);
+							log.log("readFile - failed to parse tag: " + multiLineTag);
 						}
 					}
 					continue;
@@ -61,12 +61,12 @@ public class LiquibaseFileReader implements Fallible {
 				}
 				
 				if (!evaluate(line)) {
-					logger.log("readFile - failed to parse line: " + line);
+					log.log("readFile - failed to parse line: " + line);
 				}	
 			}
 			
 		} catch (IOException ioex) {
-			logger.log("readFile - failed to read the liquibase file!");
+			log.log("readFile - failed to read the liquibase file!");
 			return false;
 		}
 		

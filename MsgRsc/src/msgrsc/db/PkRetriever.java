@@ -30,7 +30,7 @@ public class PkRetriever implements Fallible {
 			String query = "select PK_colNames from Syscat.references"
 					+ " where tabName = '" + table.getName() + "'";
 			if (!agent.executeQuery(query)) {
-				logger.log("Query yielded no results or exception: " + query);
+				log.log("Query yielded no results or exception: " + query);
 				return true;
 			}
 			
@@ -51,7 +51,7 @@ public class PkRetriever implements Fallible {
 				pks.add(fieldName);
 			}
 			if (pks.size() < 1)
-				logger.log("aaaarg");
+				log.log("aaaarg");
 			
 			table.setPkFields(pks.toArray(new String[0]));
 			scanner.close();

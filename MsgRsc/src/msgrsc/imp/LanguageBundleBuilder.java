@@ -10,7 +10,7 @@ import msgrsc.craplog.Fallible;
 
 /**
  * This is a bad class. It doesn't really do anything useful, except a for each over the files
- * for the different languages.  
+ * for the different languages. A {@link MsgRscExcelReader} does all the heavy lifting.
  */
 public class LanguageBundleBuilder implements Fallible {
 
@@ -21,7 +21,7 @@ public class LanguageBundleBuilder implements Fallible {
 	public LanguageBundleBuilder(String bugNumber) {
 		this.bugNumber = bugNumber;
 	}
-		
+	
 	public boolean buildFromExcelDirectory(String importDir) {
 		// List the Excel files in the given directory, and build a bundle from each one.
 		try {
@@ -36,7 +36,7 @@ public class LanguageBundleBuilder implements Fallible {
 			languageBundle = reader.getLanguageBundle();
 			
 			if (languageBundle == null) {
-				logger.log("buildFromExcelDirectory - no excel files found in import directory!");
+				log.log("buildFromExcelDirectory - no excel files found in import directory!");
 				informer.informUser("No excel files were found in directory " + importDir + ". "
 						+ "Please put all excel files with translations in that directory, or "
 						+ "provide the correct bug number.");

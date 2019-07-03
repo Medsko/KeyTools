@@ -48,7 +48,7 @@ public class TermFinder implements Fallible {
 	public boolean scan(MsgRscFile file) {
 		
 		if (!reader.readFile(file.getFullPath())) {
-			logger.log("TermFinder.scan - failed to read the file!");
+			log.log("TermFinder.scan - failed to read the file!");
 			return false;
 		}
 		
